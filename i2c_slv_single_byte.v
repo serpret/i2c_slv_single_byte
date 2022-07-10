@@ -1,13 +1,12 @@
-module i2c_slv_single_byte (
+module i2c_slv_single_byte #(
 	parameter NUM_CLKS_IDLE_TO  = 16*50, //800 
 	parameter NUM_CLKS_T_BUF    = 16*5 , //80
-	parameter WIDTH_IDLE_TO     =   10,
+	parameter WIDTH_IDLE_TO     =   10
+	
 	//parameter EN_2FF_SYNC       =    0,
 	//parameter EN_SDA_SCL FILTER =    0,
 
-)#
-
-(
+)(
 	input       i_clk  ,
 	input       i_rstn ,
 	input [6:0] i_addr ,
@@ -15,20 +14,21 @@ module i2c_slv_single_byte (
 	input       i_scl  ,
 	input       i_sda  ,
 	
-	output       o_sda ,
-	output [7:0] o_data
+	output reg       o_sda ,
+	output reg [7:0] o_data
 	
 );
 
 	wire start;
 	wire stop;
-	wire idle_timeout;
 	wire idle;
 	
 	reg [WIDTH_IDLE_TO-1:0] idle_timer;
 	
 	reg [3:0] bit_cnt;
+	reg ack_bit;
 	
+
 	
 	reg prev_scl;
 	wire posedge_scl;
@@ -39,7 +39,9 @@ module i2c_slv_single_byte (
 	wire negedge_sda;
 	
 	
-	reg [18:0] shift_in_reg;
+	//reg [18:0] shift_in_reg;
+	reg [7:0] shift_in_reg;
+
 	reg [18:0] shift_out_reg;
 
 
@@ -63,6 +65,9 @@ module i2c_slv_single_byte (
 	
 	assign posedge_sda = ~prev_sda &  i_sda;
 	assign negedge_sda =  prev_sda & ~i_sda;
+
+	assign start = negedge_sda & i_scl;
+	assign stop  = posedge_sda & i_scl;
 	
 	always @(posedge i_clk) begin
 		prev_scl <= i_scl;
@@ -70,7 +75,9 @@ module i2c_slv_single_byte (
 	end
 
 	always @( posedge i_clk) begin
-		if( posedge_scl) shift_in_reg <= { shift_in_reg[17:0], i_sda};
+		//if( posedge_scl) shift_in_reg <= { shift_in_reg[17:0], i_sda};
+		if( posedge_scl) shift_in_reg <= { shift_in_reg[7:0], i_sda};
+
 	end
 	
 	
@@ -99,10 +106,16 @@ module i2c_slv_single_byte (
 	// scl      HHHHHH\___/HHH\___/HHH\  ...   HHH\___/HHH\___/HHH\___/HHH\___/HHH\  ...   HHH\___/HHH\___/HHHHHH
 	// sda      HH\____/ ADDR6 X ADDR5   ... ADDR0 X Read  x NACK  X DAT7  X DAT6    ... DAT0  X NACK  X______/HHH
 	// bit_cnt  XXX 0  X  1    X   2     ...   7   X  8    X  9    X  1    X  2      ...  8    X 9     X  0
-	// full cnt     0     1        2           7      8       0       10      11          17     18      19
+	// full cnt     0     1        2           7      8       9       10      11          17     18      19
 	always @(posedge i_clk) begin
+		//if(                                start  ) bit_cnt <= 0;
+		//else if ( negedge_scl && ( 19 != bit_cnt) ) bit_cnt <= bit_cnt + 1'b1;
+		
 		if(                                start  ) bit_cnt <= 0;
-		else if ( negedge_scl && ( 19 != bit_cnt) ) bit_cnt <= bit_cnt + 1'b1;
+		else if ( negedge_scl  ) begin
+			if( 9 != bit_cnt) bit_cnt <= bit_cnt + 1'b1;
+			else              bit_cnt <= 1;
+		end
 	end
 	
 	
@@ -122,9 +135,9 @@ module i2c_slv_single_byte (
 	
 	always @(posedge i_clk) begin
 		set_addr_match  <=  (4'd7 == bit_cnt) && negedge_scl &&  addr_block && ( i_addr == shift_in_reg[6:0] );
-		set_willbe_read <=  (4'd8 == bit_cnt) && negedge_scl &&  addr_block &&             shift_in_reg[0];
-		clr_addr_block  <=  (4'd9 == bit_cnt) && negedge_scl
-		capture_data    <=  (4'd8 == bit_cnt) && negedge_scl && !addr_block && addr_match && !read_block ;
+		set_willbe_read <=  (4'd8 == bit_cnt) && negedge_scl &&  addr_block &&             shift_in_reg[0]    ;
+		clr_addr_block  <=  (4'd9 == bit_cnt) && negedge_scl                                                  ;
+		capture_data    <=  (4'd8 == bit_cnt) && negedge_scl && !addr_block && addr_match && !read_block      ;
 	end
 	
 	
