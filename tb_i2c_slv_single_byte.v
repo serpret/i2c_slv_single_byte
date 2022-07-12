@@ -47,7 +47,7 @@ module tb();
 	reg rst_latch_uut_sda_low;
 	reg      uut_sda_went_low;
 	
-	reg [9:0] mon_shift_reg;
+	reg [18:0] mon_shift_reg;
 	
 	
 	
@@ -115,7 +115,7 @@ module tb();
 	end
 	
 	always @(posedge scl) begin
-		mon_shift_reg <= {mon_shift_reg[8:0], sda};
+		mon_shift_reg <= {mon_shift_reg[17:0], sda};
 	end
 		
 
@@ -145,7 +145,8 @@ module tb();
 
 		i_data = 8'h21;
 		read_byte( 7'h51);
-		if( i_data !== mon_shift_reg[9:2]) fail_general( "read o_sda shift data incorrect", " ");
+		if( {7'h51, 1'b1, 1'b0} !== mon_shift_reg[18:10]) fail_general( "read o_sda shift addr incorrect", " ");
+		if( i_data !== mon_shift_reg[9:2])                fail_general( "read o_sda shift data incorrect", " ");
 		//read_byte( 7'h53);
 		
 

@@ -105,7 +105,7 @@ module i2c_slv_single_byte #(
 	//keep track of bit count
 	// scl      HHHHHH\___/HHH\___/HHH\  ...   HHH\___/HHH\___/HHH\___/HHH\___/HHH\  ...   HHH\___/HHH\___/HHHHHH
 	// sda      HH\____/ ADDR6 X ADDR5   ... ADDR0 X Read  x NACK  X DAT7  X DAT6    ... DAT0  X NACK  X______/HHH
-	// bit_cnt  XXX 0  X  1    X   2     ...   7   X  8    X  9    X  1    X  2      ...  8    X 9     X  0
+	// bit_cnt  XXX 0  X  1    X   2     ...   7   X  8    X  9    X  1    X  2      ...  8    X 9     X  1
 	// full cnt     0     1        2           7      8       9       10      11          17     18      19
 	always @(posedge i_clk) begin
 		//if(                                start  ) bit_cnt <= 0;
@@ -120,7 +120,7 @@ module i2c_slv_single_byte #(
 	
 	
 	always @( posedge i_clk) begin
-		if( 0 == bit_cnt ) ack_bit <= 1'b1;
+		if( 9 == bit_cnt ) ack_bit <= 1'b1;
 		else               ack_bit <= 1'b0;
 	end
 	
